@@ -1,60 +1,82 @@
 /* ************************************************************************** */
 /*                                                                            */
 /*                                                        :::      ::::::::   */
-/*   get_next_line_bonus.c                              :+:      :+:    :+:   */
+/*   get_next_line.c                                    :+:      :+:    :+:   */
 /*                                                    +:+ +:+         +:+     */
 /*   By: jberegon <jberegon@student.21-schoo>       +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
-/*   Created: 2020/12/04 13:30:42 by jberegon          #+#    #+#             */
-/*   Updated: 2020/12/04 13:30:49 by jberegon         ###   ########.fr       */
+/*   Created: 2020/11/29 04:11:58 by jberegon          #+#    #+#             */
+/*   Updated: 2020/12/13 16:39:59 by jberegon         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
-#include "get_next_line_bonus.h"
+#include "get_next_line.h"
 
-static long int	ft_check_buff(long int size)
+int			len_of_line(char *result_line)
 {
-	if (size > 8000000)
-		return (8000000);
-	return (size);
+	char	delimiter;
+	int		len;
+
+	len = 0;
+	if (ft_strchr(result_line, '\n'))
+		delimiter = '\n';
+	else
+		delimiter = '\0';
+	while (result_line[len] != delimiter)
+		len++;
+	return (len);
 }
 
-static int		ft_has_line(char *remainder)
+char		*ft_read_line(char *remainder, int fd)
 {
-	if (remainder == NULL)
-		return (0);
-	while (*remainder)
-	{
-		if (*remainder++ == '\n')
-			return (1);
-	}
-	return (0);
-}
+	char	*buff;
+	int		c_w_r;
 
-int				get_next_line(int fd, char **line)
-{
-	static char	*remainder[256];
-	int			c_w_r;
-	char		buff[ft_check_buff(BUFFER_SIZE) + 1];
-
-	if (read(fd, buff, 0) < 0)
-		return (-1);
-	if ((BUFFER_SIZE < 1 || !line || fd < 0))
-	{
-		return (-1);
-	}
 	c_w_r = 1;
-	while (c_w_r != 0 && ft_has_line(remainder[fd]) == 0)
+	if (!(buff = (char *)malloc(sizeof(char) * (BUFFER_SIZE + 1))))
+		return (NULL);
+	if (!remainder)
 	{
 		if ((c_w_r = read(fd, buff, BUFFER_SIZE)) < 0)
-			return (-1);
+		{
+			free(buff);
+			return (NULL);
+		}
 		buff[c_w_r] = '\0';
-		if (!(remainder[fd] = ft_strjoin(remainder[fd], buff)))
-			return (-1);
+		remainder = ft_strdup(buff);
 	}
-	if (!(*line = ft_strdup_line(remainder[fd])))
+	while (!(ft_strchr(remainder, '\n')) && c_w_r)
+	{
+		c_w_r = read(fd, buff, BUFFER_SIZE);
+		buff[c_w_r] = '\0';
+		remainder = ft_strjoin(remainder, buff);
+	}
+	free(buff);
+	return (remainder);
+}
+
+int			get_next_line(int fd, char **line)
+{
+	static char	*remainder[1025];
+	int			len;
+	char		*tmp;
+
+	if (fd < 0 || BUFFER_SIZE < 1 || !line)
 		return (-1);
-	if (!(remainder[fd] = ft_strdup_remainder(remainder[fd])) && c_w_r)
+	if (!(remainder[fd] = ft_read_line(remainder[fd], fd)))
 		return (-1);
-	return (c_w_r ? 1 : 0);
+	len = len_of_line(remainder[fd]);
+	if (ft_strchr(remainder[fd], '\n'))
+	{
+		tmp = remainder[fd];
+		*line = ft_substr(tmp, 0, len);
+		remainder[fd] = ft_substr(tmp, len + 1,
+				ft_strlen(remainder[fd]) - ft_strlen(*line));
+		free(tmp);
+		return (1);
+	}
+	*line = ft_substr(remainder[fd], 0, len);
+	free(remainder[fd]);
+	remainder[fd] = NULL;
+	return (0);
 }
